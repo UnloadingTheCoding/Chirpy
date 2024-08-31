@@ -16,9 +16,10 @@ func main() {
 	apiConf := &apiConfig{}
 
 	serverHandler.Handle("/app/", apiConf.middlewareMetricsInc(http.StripPrefix("/app/", http.FileServer(http.Dir(".")))))
-	serverHandler.HandleFunc("GET /healthz", healthzHandler)
-	serverHandler.HandleFunc("GET /metrics", apiConf.hitsHandler)
-	serverHandler.HandleFunc("/reset", apiConf.resetHitsHandler)
+	serverHandler.HandleFunc("GET /api/healthz", healthzHandler)
+	serverHandler.HandleFunc("GET /admin/metrics", apiConf.hitsHandler)
+	serverHandler.HandleFunc("/api/reset", apiConf.resetHitsHandler)
+	serverHandler.HandleFunc("/api/validate_chirp", validate_chirp)
 	err := server.ListenAndServe()
 	if err != nil {
 		fmt.Print(err)
@@ -35,8 +36,15 @@ func healthzHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *apiConfig) hitsHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	w.Write([]byte(fmt.Sprintf("Hits: %d", a.fileserverHits)))
+	w.Header().Set("Content-Type", "text/html")
+	w.Write([]byte(fmt.Sprintf(`<html>
+
+<body>
+    <h1>Welcome, Chirpy Admin</h1>
+    <p>Chirpy has been visited %d times!</p>
+</body>
+</html>`, a.fileserverHits)))
+
 }
 
 func (a *apiConfig) resetHitsHandler(w http.ResponseWriter, r *http.Request) {
