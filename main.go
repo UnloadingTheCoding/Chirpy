@@ -19,7 +19,7 @@ func main() {
 	serverHandler.HandleFunc("GET /api/healthz", healthzHandler)
 	serverHandler.HandleFunc("GET /admin/metrics", apiConf.hitsHandler)
 	serverHandler.HandleFunc("/api/reset", apiConf.resetHitsHandler)
-	serverHandler.HandleFunc("/api/validate_chirp", validate_chirp)
+	serverHandler.HandleFunc("POST /api/chirps", validateChirp)
 	err := server.ListenAndServe()
 	if err != nil {
 		fmt.Print(err)

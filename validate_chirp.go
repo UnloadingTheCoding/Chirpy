@@ -4,18 +4,26 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"strings"
 )
 
-func validate_chirp(w http.ResponseWriter, r *http.Request) {
+func validateChirp(w http.ResponseWriter, r *http.Request) {
 
-	type chirp struct {
-		ChirpMessage string `json:"body"`
-		Validation   bool   `json:"valid"`
-		ErrorMsg     string `json:"error"`
+	var statusCode int
+	var body interface{}
+
+	type Chirp struct {
+		ID   int    `json:"id"`
+		Body string `json:"body"`
+	}
+
+	type response struct {
+		CleanedBody string `json:"cleaned_body"`
 	}
 
 	decoder := json.NewDecoder(r.Body)
-	chirpMessage := chirp{}
+	chirpMessage := Chirp{}
+
 	err := decoder.Decode(&chirpMessage)
 	if err != nil {
 		log.Printf("error: %s", err)
@@ -23,17 +31,16 @@ func validate_chirp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if len(chirpMessage.ChirpMessage) > 140 {
-		chirpMessage.Validation = false
-		chirpMessage.ErrorMsg = "Chirp is too long"
-		w.WriteHeader(400)
-		w.Write([]byte(chirpMessage.ErrorMsg))
-		return
+	if len(chirpMessage.Body) > 140 {
+		body = map[string]string{"error": "Chirp is too long"}
+		statusCode = 400
+	} else {
+		statusCode = 201
+		chirpMessage.Body = profaneChecker(chirpMessage.Body)
+		body = response{CleanedBody: chirpMessage.Body}
 	}
 
-	chirpMessage.Validation = true
-
-	res, err := json.Marshal(chirpMessage)
+	res, err := json.Marshal(body)
 	if err != nil {
 		log.Printf("error marshalling JSON: %s", err)
 		w.WriteHeader(500)
@@ -42,7 +49,25 @@ func validate_chirp(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(200)
+	w.WriteHeader(statusCode)
 	w.Write(res)
+
+}
+
+func profaneChecker(check string) string {
+
+	profanity := []string{"kerfuffle", "sharbert", "fornax"}
+
+	checkThis := strings.Split(check, " ")
+	for _, pWord := range profanity {
+		for i, word := range checkThis {
+			if strings.EqualFold(word, pWord) {
+				checkThis[i] = "****"
+			}
+		}
+	}
+	cleaned := strings.Join(checkThis, " ")
+
+	return cleaned
 
 }
