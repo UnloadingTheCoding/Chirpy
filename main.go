@@ -1,13 +1,22 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"net/http"
+	"os"
 
 	"github.com/unloadingthecoding/chirpy/internal/database"
 )
 
 func main() {
+
+	debug := flag.Bool("debug", false, "Enable debug mode")
+	flag.Parse()
+
+	if *debug {
+		os.Remove("database.json")
+	}
 
 	db, err := database.NewDB("database.json")
 	if err != nil {
@@ -32,6 +41,8 @@ func main() {
 	serverHandler.HandleFunc("GET /api/chirps", apiConf.handlerChirpsGet)
 	serverHandler.HandleFunc("POST /api/chirps", apiConf.createChirp)
 	serverHandler.HandleFunc("GET /api/chirps/{chirpID}", apiConf.handleOneChirpReq)
+	serverHandler.HandleFunc("POST /api/users", apiConf.handleUserCreate)
+	serverHandler.HandleFunc("GET /api/users/{userID}", apiConf.handleUserGetOne)
 	err = server.ListenAndServe()
 	if err != nil {
 		fmt.Print(err)
