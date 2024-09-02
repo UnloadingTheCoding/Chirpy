@@ -5,21 +5,19 @@ import (
 	"log"
 	"net/http"
 	"strings"
+
+	"github.com/unloadingthecoding/chirpy/internal/database"
 )
 
-func validateChirp(w http.ResponseWriter, r *http.Request) {
+type Chirp struct {
+	ID   int    `json:"id"`
+	Body string `json:"body"`
+}
+
+func (cfg *apiConfig) createChirp(w http.ResponseWriter, r *http.Request) {
 
 	var statusCode int
-	var body interface{}
-
-	type Chirp struct {
-		ID   int    `json:"id"`
-		Body string `json:"body"`
-	}
-
-	type response struct {
-		CleanedBody string `json:"cleaned_body"`
-	}
+	var body database.Chirp
 
 	decoder := json.NewDecoder(r.Body)
 	chirpMessage := Chirp{}
@@ -32,12 +30,15 @@ func validateChirp(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if len(chirpMessage.Body) > 140 {
-		body = map[string]string{"error": "Chirp is too long"}
+		body.Body = "Chirp is too long"
 		statusCode = 400
 	} else {
 		statusCode = 201
 		chirpMessage.Body = profaneChecker(chirpMessage.Body)
-		body = response{CleanedBody: chirpMessage.Body}
+		body, err = cfg.DB.CreateChirp(chirpMessage.Body)
+		if err != nil {
+			log.Printf("errroooorrr: %s", err)
+		}
 	}
 
 	res, err := json.Marshal(body)

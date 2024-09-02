@@ -3,9 +3,16 @@ package main
 import (
 	"fmt"
 	"net/http"
+
+	"github.com/unloadingthecoding/chirpy/internal/database"
 )
 
 func main() {
+
+	db, err := database.NewDB("database.json")
+	if err != nil {
+		fmt.Errorf("unable to generate db: %w", err)
+	}
 
 	serverHandler := http.NewServeMux()
 	server := &http.Server{
@@ -13,14 +20,19 @@ func main() {
 		Addr:    ":8080",
 	}
 
-	apiConf := &apiConfig{}
+	apiConf := &apiConfig{
+		fileserverHits: 0,
+		DB:             db,
+	}
 
 	serverHandler.Handle("/app/", apiConf.middlewareMetricsInc(http.StripPrefix("/app/", http.FileServer(http.Dir(".")))))
 	serverHandler.HandleFunc("GET /api/healthz", healthzHandler)
 	serverHandler.HandleFunc("GET /admin/metrics", apiConf.hitsHandler)
 	serverHandler.HandleFunc("/api/reset", apiConf.resetHitsHandler)
-	serverHandler.HandleFunc("POST /api/chirps", validateChirp)
-	err := server.ListenAndServe()
+	serverHandler.HandleFunc("GET /api/chirps", apiConf.handlerChirpsGet)
+	serverHandler.HandleFunc("POST /api/chirps", apiConf.createChirp)
+	serverHandler.HandleFunc("GET /api/chirps/{chirpID}", apiConf.handleOneChirpReq)
+	err = server.ListenAndServe()
 	if err != nil {
 		fmt.Print(err)
 	}
@@ -53,6 +65,7 @@ func (a *apiConfig) resetHitsHandler(w http.ResponseWriter, r *http.Request) {
 
 type apiConfig struct {
 	fileserverHits int
+	DB             *database.DB
 }
 
 func (cfg *apiConfig) middlewareMetricsInc(next http.Handler) http.Handler {
