@@ -3,13 +3,18 @@ package main
 import (
 	"flag"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 
+	"github.com/joho/godotenv"
 	"github.com/unloadingthecoding/chirpy/internal/database"
 )
 
 func main() {
+
+	godotenv.Load()
+	jwtSecret := os.Getenv("JWT_SECRET")
 
 	debug := flag.Bool("debug", false, "Enable debug mode")
 	flag.Parse()
@@ -20,7 +25,7 @@ func main() {
 
 	db, err := database.NewDB("database.json")
 	if err != nil {
-		fmt.Errorf("unable to generate db: %w", err)
+		log.Printf("unable to generate db: %s", err)
 	}
 
 	serverHandler := http.NewServeMux()
@@ -32,6 +37,7 @@ func main() {
 	apiConf := &apiConfig{
 		fileserverHits: 0,
 		DB:             db,
+		JWT:            jwtSecret,
 	}
 
 	serverHandler.Handle("/app/", apiConf.middlewareMetricsInc(http.StripPrefix("/app/", http.FileServer(http.Dir(".")))))
@@ -78,6 +84,7 @@ func (a *apiConfig) resetHitsHandler(w http.ResponseWriter, r *http.Request) {
 type apiConfig struct {
 	fileserverHits int
 	DB             *database.DB
+	JWT            string
 }
 
 func (cfg *apiConfig) middlewareMetricsInc(next http.Handler) http.Handler {
