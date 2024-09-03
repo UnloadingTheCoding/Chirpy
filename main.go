@@ -43,6 +43,7 @@ func main() {
 	serverHandler.HandleFunc("GET /api/chirps/{chirpID}", apiConf.handleOneChirpReq)
 	serverHandler.HandleFunc("POST /api/users", apiConf.handleUserCreate)
 	serverHandler.HandleFunc("GET /api/users/{userID}", apiConf.handleUserGetOne)
+	serverHandler.HandleFunc("POST /api/login", apiConf.handleUserLogin)
 	err = server.ListenAndServe()
 	if err != nil {
 		fmt.Print(err)

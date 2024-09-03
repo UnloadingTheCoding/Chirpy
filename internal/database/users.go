@@ -3,11 +3,16 @@ package database
 import "os"
 
 type User struct {
-	ID    int    `json:"id"`
-	Email string `json:"email"`
+	Email    string `json:"email"`
+	ID       int    `json:"id"`
+	Password string `json:"password"`
 }
 
-func (db *DB) CreateUser(email string) (User, error) {
+func (db *DB) CreateUser(email, password string) (User, error) {
+
+	if db.EmailExist(email) {
+		return User{}, os.ErrExist
+	}
 
 	data, err := db.loadDB()
 	if err != nil {
@@ -16,8 +21,9 @@ func (db *DB) CreateUser(email string) (User, error) {
 
 	id := len(data.Users) + 1
 	user := User{
-		ID:    id,
-		Email: email,
+		ID:       id,
+		Email:    email,
+		Password: password,
 	}
 
 	data.Users[user.ID] = user
@@ -42,4 +48,30 @@ func (db *DB) GetUser(id int) (User, error) {
 	}
 
 	return user, nil
+}
+
+func (db *DB) FindUser(email string) (User, error) {
+	dbStructure, err := db.loadDB()
+	if err != nil {
+		return User{}, err
+	}
+
+	for key, val := range dbStructure.Users {
+		if val.Email == email {
+			return dbStructure.Users[key], nil
+		}
+	}
+
+	return User{}, os.ErrNotExist
+}
+
+func (db *DB) EmailExist(email string) bool {
+
+	_, err := db.FindUser(email)
+	if err != nil {
+		return false
+	}
+
+	return true
+
 }
