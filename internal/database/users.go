@@ -75,3 +75,22 @@ func (db *DB) EmailExist(email string) bool {
 	return true
 
 }
+
+func (db *DB) UpdateUser(id int, email, password string) error {
+
+	data, err := db.loadDB()
+	if err != nil {
+		return err
+	}
+
+	user := data.Users[id]
+	user.Email = email
+	user.Password = password
+	data.Users[id] = user
+
+	err = db.writeDB(data)
+	if err != nil {
+		return err
+	}
+	return nil
+}

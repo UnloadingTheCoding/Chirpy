@@ -50,6 +50,7 @@ func main() {
 	serverHandler.HandleFunc("POST /api/users", apiConf.handleUserCreate)
 	serverHandler.HandleFunc("GET /api/users/{userID}", apiConf.handleUserGetOne)
 	serverHandler.HandleFunc("POST /api/login", apiConf.handleUserLogin)
+	serverHandler.HandleFunc("PUT /api/users", apiConf.handleUserUpdate)
 	err = server.ListenAndServe()
 	if err != nil {
 		fmt.Print(err)
