@@ -76,7 +76,13 @@ func (cfg *apiConfig) handleUserCreate(w http.ResponseWriter, r *http.Request) {
 
 func (cfg *apiConfig) handleUserLogin(w http.ResponseWriter, r *http.Request) {
 
-	user := database.User{}
+	type parameters struct {
+		Password         string `json:"password"`
+		Email            string `json:"email"`
+		ExpiresInSeconds int    `json:"expires_in_seconds"`
+	}
+
+	user := parameters{}
 
 	decoder := json.NewDecoder(r.Body)
 	err := decoder.Decode(&user)
@@ -84,6 +90,13 @@ func (cfg *apiConfig) handleUserLogin(w http.ResponseWriter, r *http.Request) {
 		log.Printf("failure to decode create user request: %s", err)
 		w.WriteHeader(500)
 		return
+	}
+
+	defaultExpiration := 60 * 60 * 24
+	expiration := time.Duration(defaultExpiration)
+
+	if user.ExpiresInSeconds < defaultExpiration && user.ExpiresInSeconds > 0 {
+		expiration = time.Duration(user.ExpiresInSeconds)
 	}
 
 	pwcompare, err := cfg.DB.FindUser(user.Email)
@@ -101,7 +114,7 @@ func (cfg *apiConfig) handleUserLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	data, err := json.Marshal(map[string]interface{}{"id": pwcompare.ID, "email": pwcompare.Email, "token": cfg.generateToken(id)})
+	data, err := json.Marshal(map[string]interface{}{"id": pwcompare.ID, "email": pwcompare.Email, "token": cfg.generateToken(id, expiration*time.Second)})
 	if err != nil {
 		log.Printf("conversion to json failed: %s", err)
 	}
@@ -121,11 +134,19 @@ func (cfg *apiConfig) handleUserUpdate(w http.ResponseWriter, r *http.Request) {
 	token, err := jwt.ParseWithClaims(authHeader, &claim, func(token *jwt.Token) (interface{}, error) { return []byte(cfg.JWT), nil })
 	if err != nil {
 		log.Printf("error: %s", err)
+		w.WriteHeader(401)
+		return
 	}
 
-	if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-		log.Printf("unexpected signing method: %v", token.Header["alg"])
+	issuer, err := token.Claims.GetIssuer()
+	if err != nil {
 		w.WriteHeader(401)
+		return
+	}
+	if issuer != string("chirpy") {
+		log.Print("invalid issuer")
+		w.WriteHeader(401)
+		return
 	}
 
 	userID, err := token.Claims.GetSubject()
@@ -169,13 +190,12 @@ func (cfg *apiConfig) handleUserUpdate(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func (cfg *apiConfig) generateToken(id string) string {
-	TwentyFourHours := time.Now().Add(time.Hour * 24)
+func (cfg *apiConfig) generateToken(id string, expiration time.Duration) string {
 
 	claims := jwt.RegisteredClaims{
 		Issuer:    "chirpy",
 		IssuedAt:  jwt.NewNumericDate(time.Now().UTC()),
-		ExpiresAt: jwt.NewNumericDate(TwentyFourHours),
+		ExpiresAt: jwt.NewNumericDate(time.Now().UTC().Add(expiration)),
 		Subject:   id,
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
